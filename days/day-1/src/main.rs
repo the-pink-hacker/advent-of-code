@@ -53,28 +53,20 @@ fn calculate_similarity(similarity_map: HashMap<u32, Similarity>) -> u32 {
     similarity_map.values().map(Similarity::score).sum()
 }
 
-fn part_one(mut left: Vec<u32>, mut right: Vec<u32>) {
+fn part_one(mut left: Vec<u32>, mut right: Vec<u32>) -> u32 {
     left.sort();
     right.sort();
 
-    let total_distance = distance(left, right);
-
-    println!();
-    println!("Part One");
-    println!("Total Distance: {}", total_distance);
+    distance(left, right)
 }
 
-fn part_two(left: Vec<u32>, right: Vec<u32>) {
+fn part_two(left: Vec<u32>, right: Vec<u32>) -> u32 {
     let mut similarity_map = HashMap::<u32, Similarity>::new();
 
     similarity_sum(&mut similarity_map, left);
     similarity_occurrences(&mut similarity_map, right);
 
-    let similarity = calculate_similarity(similarity_map);
-
-    println!();
-    println!("Part Two");
-    println!("Similarity: {}", similarity);
+    calculate_similarity(similarity_map)
 }
 
 fn main() {
@@ -82,8 +74,17 @@ fn main() {
 
     println!("=== Day One ===");
 
-    part_one(left.clone(), right.clone());
-    part_two(left, right);
+    let total_distance = part_one(left.clone(), right.clone());
+
+    println!();
+    println!("Part One");
+    println!("Total Distance: {}", total_distance);
+
+    let similarity = part_two(left, right);
+
+    println!();
+    println!("Part Two");
+    println!("Similarity: {}", similarity);
 }
 
 #[cfg(test)]
@@ -132,5 +133,19 @@ mod tests {
         similarity_occurrences(&mut similarity_map, right);
 
         assert_eq!(calculate_similarity(similarity_map), 31);
+    }
+
+    #[test]
+    fn part_one_final() {
+        let (left, right) = split_data(INPUT);
+
+        assert_eq!(part_one(left, right), 1580061);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let (left, right) = split_data(INPUT);
+
+        assert_eq!(part_two(left, right), 23046913);
     }
 }
