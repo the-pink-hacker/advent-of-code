@@ -78,10 +78,7 @@ impl Equation {
             .map(Result::unwrap)
             .collect();
 
-        Self {
-            final_value,
-            values,
-        }
+        Self::new(final_value, values)
     }
 
     fn eval(&self, operators: &[Operator]) -> usize {
