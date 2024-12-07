@@ -1,10 +1,10 @@
 const INPUT: &str = include_str!("../input");
-const OPERATORS: u8 = 2;
 
 #[derive(Debug, Clone, Copy)]
 enum Operator {
     Add,
     Multiply,
+    Concat,
 }
 
 impl Operator {
@@ -12,6 +12,11 @@ impl Operator {
         match self {
             Self::Add => left + right,
             Self::Multiply => left * right,
+            Self::Concat => {
+                let left_power = right.ilog10() + 1;
+                let left = left * 10usize.pow(left_power);
+                left + right
+            }
         }
     }
 
@@ -23,6 +28,25 @@ impl Operator {
                 false
             }
             Self::Multiply => {
+                *self = Self::Add;
+                true
+            }
+            Self::Concat => panic!("Concat unsupported"),
+        }
+    }
+
+    // Returns true if wraps
+    fn advance_concat(&mut self) -> bool {
+        match self {
+            Self::Add => {
+                *self = Self::Multiply;
+                false
+            }
+            Self::Multiply => {
+                *self = Self::Concat;
+                false
+            }
+            Self::Concat => {
                 *self = Self::Add;
                 true
             }
@@ -70,15 +94,19 @@ impl Equation {
         *values.last().unwrap()
     }
 
-    fn solve_operators(&self) -> Option<usize> {
+    fn solve_operators(
+        &self,
+        advance: impl Fn(&mut Operator) -> bool,
+        operator_number: u8,
+    ) -> Option<usize> {
         let operators_length = self.values.len() - 1;
         let mut operators = vec![Operator::Add; operators_length];
 
-        let loop_amount = (OPERATORS as usize).pow(operators_length as u32);
+        let loop_amount = (operator_number as u32).pow(operators_length as u32);
 
-        for i in 0..loop_amount {
+        for _ in 0..loop_amount {
             for operator in &mut operators {
-                if !operator.advance() {
+                if !advance(operator) {
                     break;
                 }
             }
@@ -90,6 +118,14 @@ impl Equation {
 
         None
     }
+
+    fn part_one(&self) -> Option<usize> {
+        self.solve_operators(Operator::advance, 2)
+    }
+
+    fn part_two(&self) -> Option<usize> {
+        self.solve_operators(Operator::advance_concat, 3)
+    }
 }
 
 fn parse_equations(raw: &str) -> Vec<Equation> {
@@ -97,7 +133,11 @@ fn parse_equations(raw: &str) -> Vec<Equation> {
 }
 
 fn part_one(equations: &[Equation]) -> usize {
-    equations.iter().filter_map(Equation::solve_operators).sum()
+    equations.iter().filter_map(Equation::part_one).sum()
+}
+
+fn part_two(equations: &[Equation]) -> usize {
+    equations.iter().filter_map(Equation::part_two).sum()
 }
 
 fn main() {
@@ -108,6 +148,10 @@ fn main() {
     println!();
     println!("Part One:");
     println!("{}", part_one(&equations));
+
+    println!();
+    println!("Part Two:");
+    println!("{}", part_two(&equations));
 }
 
 #[cfg(test)]
@@ -144,55 +188,55 @@ mod tests {
     #[test]
     fn example_1_0() {
         let equation = Equation::new(190, vec![10, 19]);
-        assert_eq!(equation.solve_operators(), Some(190));
+        assert_eq!(equation.part_one(), Some(190));
     }
 
     #[test]
     fn example_1_1() {
         let equation = Equation::new(3267, vec![81, 40, 27]);
-        assert_eq!(equation.solve_operators(), Some(3267));
+        assert_eq!(equation.part_one(), Some(3267));
     }
 
     #[test]
     fn example_1_2() {
         let equation = Equation::new(83, vec![17, 5]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_3() {
         let equation = Equation::new(156, vec![15, 6]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_4() {
         let equation = Equation::new(7290, vec![6, 8, 6, 15]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_5() {
         let equation = Equation::new(161011, vec![16, 10, 13]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_6() {
         let equation = Equation::new(192, vec![17, 8, 14]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_7() {
         let equation = Equation::new(21037, vec![9, 7, 18, 13]);
-        assert_eq!(equation.solve_operators(), None);
+        assert_eq!(equation.part_one(), None);
     }
 
     #[test]
     fn example_1_8() {
         let equation = Equation::new(292, vec![11, 6, 16, 20]);
-        assert_eq!(equation.solve_operators(), Some(292));
+        assert_eq!(equation.part_one(), Some(292));
     }
 
     #[test]
@@ -202,8 +246,26 @@ mod tests {
     }
 
     #[test]
+    fn concat() {
+        let concat = Operator::Concat.apply(123, 4567);
+        assert_eq!(concat, 1234567);
+    }
+
+    #[test]
+    fn example_2() {
+        let equations = parse_equations(EXAMPLE_ONE);
+        assert_eq!(part_two(&equations), 11387);
+    }
+
+    #[test]
     fn part_one_final() {
         let equations = parse_equations(INPUT);
         assert_eq!(part_one(&equations), 2654749936343);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let equations = parse_equations(INPUT);
+        assert_eq!(part_two(&equations), 124060392153684);
     }
 }
