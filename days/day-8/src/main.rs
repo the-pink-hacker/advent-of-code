@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 
@@ -85,7 +85,7 @@ impl City {
             .collect()
     }
 
-    fn antinodes(&self) -> u32 {
+    fn antinodes_distance(&self) -> u32 {
         let mut total_antinodes = 0;
 
         for y in 0..self.height {
@@ -117,6 +117,30 @@ impl City {
 
         total_antinodes
     }
+
+    fn antinodes(&self) -> u32 {
+        let mut antinode_set = self
+            .antennas
+            .values()
+            .flatten()
+            .cloned()
+            .collect::<HashSet<_>>();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                for frequency in self.antennas.keys() {
+                    let inline_antennas = self.inline_antennas(frequency, (x, y));
+
+                    if !inline_antennas.is_empty() {
+                        antinode_set.insert((x, y));
+                        break;
+                    }
+                }
+            }
+        }
+
+        antinode_set.len() as u32
+    }
 }
 
 fn main() {
@@ -126,11 +150,11 @@ fn main() {
 
     println!();
     println!("Part One:");
-    println!("{}", city.antinodes());
+    println!("{}", city.antinodes_distance());
 
     println!();
     println!("Part Two:");
-    println!("{}", 0);
+    println!("{}", city.antinodes());
 }
 
 #[cfg(test)]
@@ -169,6 +193,24 @@ mod tests {
     #[test]
     fn example_1() {
         let city = City::parse(EXAMPLE_ONE);
-        assert_eq!(city.antinodes(), 14);
+        assert_eq!(city.antinodes_distance(), 14);
+    }
+
+    #[test]
+    fn example_2() {
+        let city = City::parse(EXAMPLE_ONE);
+        assert_eq!(city.antinodes(), 34);
+    }
+
+    #[test]
+    fn part_one_final() {
+        let city = City::parse(INPUT);
+        assert_eq!(city.antinodes_distance(), 376);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let city = City::parse(INPUT);
+        assert_eq!(city.antinodes(), 1352);
     }
 }
