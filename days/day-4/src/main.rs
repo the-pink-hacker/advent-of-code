@@ -1,4 +1,6 @@
-const INPUT: &str = include_str!("../input");
+use common::*;
+
+include_input!(INPUT);
 
 #[derive(Debug)]
 struct WordTable {
@@ -150,15 +152,7 @@ impl WordTable {
 fn main() {
     let table = WordTable::new(INPUT);
 
-    println!("=== Day 4 ===");
-
-    println!();
-    println!("Part One:");
-    println!("{}", table.scan_xmas());
-
-    println!();
-    println!("Part Two:");
-    println!("{}", table.scan_x_mas());
+    advent_solution(4, table.scan_xmas(), table.scan_x_mas());
 }
 
 #[cfg(test)]

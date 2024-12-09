@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-const INPUT: &str = include_str!("../input");
+use common::*;
+
+include_input!(INPUT);
 
 fn split_data(data: &str) -> (Vec<u32>, Vec<u32>) {
     data.split_whitespace()
@@ -72,19 +74,11 @@ fn part_two(left: Vec<u32>, right: Vec<u32>) -> u32 {
 fn main() {
     let (left, right) = split_data(INPUT);
 
-    println!("=== Day One ===");
-
-    let total_distance = part_one(left.clone(), right.clone());
-
-    println!();
-    println!("Part One");
-    println!("Total Distance: {}", total_distance);
-
-    let similarity = part_two(left, right);
-
-    println!();
-    println!("Part Two");
-    println!("Similarity: {}", similarity);
+    advent_solution(
+        1,
+        part_one(left.clone(), right.clone()),
+        part_two(left, right),
+    );
 }
 
 #[cfg(test)]

@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use common::*;
 use itertools::Itertools;
 
-const INPUT: &str = include_str!("../input");
+include_input!(INPUT);
 
 type Table = HashMap<u8, Vec<u8>>;
 
@@ -93,15 +94,11 @@ fn part_two(after_table: &Table, pages: Vec<Vec<u8>>) -> u32 {
 fn main() {
     let (after_table, pages) = parse_input(INPUT);
 
-    println!("=== Day 5 ===");
-
-    println!();
-    println!("Part One:");
-    println!("{}", part_one(&after_table, &pages));
-
-    println!();
-    println!("Part Two:");
-    println!("{}", part_two(&after_table, pages));
+    advent_solution(
+        5,
+        part_one(&after_table, &pages),
+        part_two(&after_table, pages),
+    );
 }
 
 #[cfg(test)]

@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use common::*;
 use itertools::Itertools;
 
-const INPUT: &str = include_str!("../input");
+include_input!(INPUT);
 
 fn reduce_slope(slope: (isize, isize)) -> (isize, isize) {
     let (mut x, mut y) = slope;
@@ -146,15 +147,7 @@ impl City {
 fn main() {
     let city = City::parse(INPUT);
 
-    println!("=== Day 8 ===");
-
-    println!();
-    println!("Part One:");
-    println!("{}", city.antinodes_distance());
-
-    println!();
-    println!("Part Two:");
-    println!("{}", city.antinodes());
+    advent_solution(8, city.antinodes_distance(), city.antinodes());
 }
 
 #[cfg(test)]

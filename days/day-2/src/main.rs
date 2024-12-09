@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
-const INPUT: &str = include_str!("../input");
+use common::*;
+
+include_input!(INPUT);
 
 fn parse_reports(data: &str) -> Vec<Vec<u8>> {
     data.lines()
@@ -77,19 +79,7 @@ fn part_two(reports: &[Vec<u8>]) -> usize {
 fn main() {
     let reports = parse_reports(INPUT);
 
-    println!("=== Day 2 ===");
-
-    let total_safe = part_one(&reports);
-
-    println!();
-    println!("Part 1");
-    println!("Safe Reports: {}", total_safe);
-
-    let total_mostly_safe = part_two(&reports);
-
-    println!();
-    println!("Part 2");
-    println!("Mostly Safe Reports: {}", total_mostly_safe);
+    advent_solution(2, part_one(&reports), part_two(&reports));
 }
 
 #[cfg(test)]

@@ -1,4 +1,6 @@
-const INPUT: &str = include_str!("../input");
+use common::*;
+
+include_input!(INPUT);
 
 #[derive(Debug, Clone, Copy)]
 enum Operator {
@@ -140,15 +142,7 @@ fn part_two(equations: &[Equation]) -> usize {
 fn main() {
     let equations = parse_equations(INPUT);
 
-    println!("=== Day 7 ===");
-
-    println!();
-    println!("Part One:");
-    println!("{}", part_one(&equations));
-
-    println!();
-    println!("Part Two:");
-    println!("{}", part_two(&equations));
+    advent_solution(7, part_one(&equations), part_two(&equations));
 }
 
 #[cfg(test)]

@@ -1,9 +1,11 @@
 use std::{cell::OnceCell, collections::HashSet, sync::atomic::AtomicU32};
 
+use common::*;
+
 // If you see rayon you know this ain't good code
 use rayon::prelude::*;
 
-const INPUT: &str = include_str!("../input");
+include_input!(INPUT);
 
 #[derive(Debug, Clone, Copy)]
 enum Direction {
@@ -160,15 +162,7 @@ fn main() {
     let part_two = map.part_two();
     let part_one = map.part_one();
 
-    println!("=== Day 6 ===");
-
-    println!();
-    println!("Part One:");
-    println!("{}", part_one);
-
-    println!();
-    println!("Part Two:");
-    println!("{}", part_two);
+    advent_solution(6, part_one, part_two);
 }
 
 #[cfg(test)]

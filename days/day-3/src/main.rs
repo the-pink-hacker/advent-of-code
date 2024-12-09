@@ -1,6 +1,8 @@
 use std::{iter::Peekable, str::Chars};
 
-const INPUT: &str = include_str!("../input");
+use common::*;
+
+include_input!(INPUT);
 
 // Part One horrors we don't speak of
 //
@@ -163,15 +165,7 @@ fn main() {
     let parser = Parser::new(INPUT);
     let functions = parser.functions();
 
-    println!("=== Day 3 ===");
-
-    println!();
-    println!("Part 1");
-    println!("Products: {}", part_one(&functions));
-
-    println!();
-    println!("Part 2");
-    println!("Products: {}", part_two(&functions));
+    advent_solution(3, part_one(&functions), part_two(&functions));
 }
 
 #[cfg(test)]
