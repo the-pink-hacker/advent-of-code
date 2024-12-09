@@ -113,19 +113,81 @@ fn reallocate(segments: &[FileSystemSegment]) -> Vec<FileSystemSegment> {
     reallocated
 }
 
-fn part_one(segments: &[FileSystemSegment]) -> usize {
+#[allow(unused)]
+fn print_seg(segments: &[FileSystemSegment]) {
+    let mut output = String::new();
+
+    for segment in segments {
+        match segment {
+            FileSystemSegment::FreeSpace(amount) => (0..*amount).for_each(|_| output.push('.')),
+            FileSystemSegment::File { id, size } => {
+                (0..*size).for_each(|_| output.push_str(&id.to_string()))
+            }
+        }
+    }
+
+    println!("{}", output);
+}
+
+fn reallocate_strict(mut segments: Vec<FileSystemSegment>) -> Vec<FileSystemSegment> {
+    let mut i = segments.len();
+
+    while i > 2 {
+        i -= 1;
+
+        if let FileSystemSegment::File { id: _, size } = segments[i] {
+            let mut search_index = 1;
+            while search_index < i {
+                if let FileSystemSegment::FreeSpace(space) = &mut segments[search_index] {
+                    if *space < size {
+                        search_index += 1;
+                        continue;
+                    }
+
+                    let space_left = *space - size;
+
+                    if space_left > 0 {
+                        *space = size;
+                    }
+
+                    segments.swap(search_index, i);
+
+                    if space_left > 0 {
+                        segments.insert(search_index + 1, FileSystemSegment::FreeSpace(space_left));
+                    }
+
+                    break;
+                }
+
+                search_index += 1;
+            }
+        }
+    }
+
+    segments
+}
+
+fn process_checksums(segments: &[FileSystemSegment]) -> usize {
     let mut index = 0;
 
-    reallocate(segments)
+    segments
         .iter()
-        .filter_map(|x| x.checksum(&mut index))
+        .filter_map(|segment| segment.checksum(&mut index))
         .sum()
+}
+
+fn part_one(segments: &[FileSystemSegment]) -> usize {
+    process_checksums(&reallocate(segments))
+}
+
+fn part_two(segments: Vec<FileSystemSegment>) -> usize {
+    process_checksums(&reallocate_strict(segments))
 }
 
 fn main() {
     let segments = parse_segments(INPUT);
 
-    advent_solution(9, part_one(&segments), "");
+    advent_solution(9, part_one(&segments), part_two(segments));
 }
 
 #[cfg(test)]
@@ -160,8 +222,20 @@ mod tests {
     }
 
     #[test]
+    fn example_2() {
+        let segments = parse_segments(EXAMPLE_ONE);
+        assert_eq!(part_two(segments), 2858);
+    }
+
+    #[test]
     fn part_one_final() {
         let segments = parse_segments(INPUT);
         assert_eq!(part_one(&segments), 6356833654075);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let segments = parse_segments(INPUT);
+        assert_eq!(part_two(segments), 6389911791746);
     }
 }
