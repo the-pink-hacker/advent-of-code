@@ -118,8 +118,8 @@ impl LabMap {
     }
 
     fn travel_all_capped(&mut self) -> bool {
-        let max = 1_000_000;
-        for i in 0..max {
+        let max = (self.width as u16 * self.height as u16) - self.obstructions.len() as u16;
+        for _ in 0..max {
             if !self.travel() {
                 return true;
             }
