@@ -33,26 +33,50 @@ impl HikingMap {
         }
     }
 
-    fn scan(&self, x: usize, y: usize, found: &mut HashSet<(usize, usize)>) {
+    fn scan_visted(&self, x: usize, y: usize, found: &mut HashSet<(usize, usize)>) {
         let current = self.grid[y][x];
 
         if current == 9 {
             found.insert((x, y));
         } else {
             if x > 0 && self.grid[y][x - 1].wrapping_sub(current) == 1 {
-                self.scan(x - 1, y, found);
+                self.scan_visted(x - 1, y, found);
             }
 
             if x < self.width - 1 && self.grid[y][x + 1].wrapping_sub(current) == 1 {
-                self.scan(x + 1, y, found);
+                self.scan_visted(x + 1, y, found);
             }
 
             if y > 0 && self.grid[y - 1][x].wrapping_sub(current) == 1 {
-                self.scan(x, y - 1, found);
+                self.scan_visted(x, y - 1, found);
             }
 
             if y < self.height - 1 && self.grid[y + 1][x].wrapping_sub(current) == 1 {
-                self.scan(x, y + 1, found);
+                self.scan_visted(x, y + 1, found);
+            }
+        }
+    }
+
+    fn scan_path(&self, x: usize, y: usize, found: &mut usize) {
+        let current = self.grid[y][x];
+
+        if current == 9 {
+            *found += 1;
+        } else {
+            if x > 0 && self.grid[y][x - 1].wrapping_sub(current) == 1 {
+                self.scan_path(x - 1, y, found);
+            }
+
+            if x < self.width - 1 && self.grid[y][x + 1].wrapping_sub(current) == 1 {
+                self.scan_path(x + 1, y, found);
+            }
+
+            if y > 0 && self.grid[y - 1][x].wrapping_sub(current) == 1 {
+                self.scan_path(x, y - 1, found);
+            }
+
+            if y < self.height - 1 && self.grid[y + 1][x].wrapping_sub(current) == 1 {
+                self.scan_path(x, y + 1, found);
             }
         }
     }
@@ -63,7 +87,7 @@ impl HikingMap {
             .map(|(x, y)| {
                 let mut visted = HashSet::new();
 
-                self.scan(x, y, &mut visted);
+                self.scan_visted(x, y, &mut visted);
 
                 visted.len()
             })
@@ -71,14 +95,21 @@ impl HikingMap {
     }
 
     fn part_two(&self) -> usize {
-        0
+        width_height_2d_iter(self.width, self.height)
+            .filter(|(x, y)| self.grid[*y][*x] == 0)
+            .map(|(x, y)| {
+                let mut found = 0;
+                self.scan_path(x, y, &mut found);
+                found
+            })
+            .sum()
     }
 }
 
 fn main() {
     let map = HikingMap::new(INPUT);
 
-    advent_solution(10, map.part_one(), "");
+    advent_solution(10, map.part_one(), map.part_two());
 }
 
 #[cfg(test)]
@@ -110,5 +141,11 @@ mod tests {
     fn part_one_final() {
         let map = HikingMap::new(INPUT);
         assert_eq!(map.part_one(), 822);
+    }
+
+    #[test]
+    fn path_two_final() {
+        let map = HikingMap::new(INPUT);
+        assert_eq!(map.part_two(), 1801);
     }
 }
