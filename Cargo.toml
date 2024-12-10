@@ -3,3 +3,8 @@ resolver = "2"
 members = [ "common",
     "days/day-1", "days/day-10", "days/day-2", "days/day-3", "days/day-4", "days/day-5", "days/day-6", "days/day-7", "days/day-8", "days/day-9",
 ]
+
+[workspace.package]
+authors = [ "ThePinkHacker" ]
+license = "GPL-3.0-or-later"
+repository = "https://github.thepinkhacker.com/advent-of-code-2024"
