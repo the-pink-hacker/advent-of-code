@@ -89,32 +89,29 @@ impl City {
     fn antinodes_distance(&self) -> u32 {
         let mut total_antinodes = 0;
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                'frequency: for frequency in self.antennas.keys() {
-                    let inline_antennas = self.inline_antennas(frequency, (x, y));
+        width_height_2d_iter(self.width, self.height).for_each(|(x, y)| {
+            'frequency: for frequency in self.antennas.keys() {
+                let inline_antennas = self.inline_antennas(frequency, (x, y));
 
-                    for inline_antenna_group in inline_antennas {
-                        for antennas in inline_antenna_group.into_iter().combinations(2) {
-                            let (antenna_a_x, _) = antennas[0];
-                            let (antenna_b_x, _) = antennas[1];
+                for inline_antenna_group in inline_antennas {
+                    for antennas in inline_antenna_group.into_iter().combinations(2) {
+                        let (antenna_a_x, _) = antennas[0];
+                        let (antenna_b_x, _) = antennas[1];
 
-                            let distance_a_x = antenna_a_x.abs_diff(x);
-                            let distance_b_x = antenna_b_x.abs_diff(x);
+                        let distance_a_x = antenna_a_x.abs_diff(x);
+                        let distance_b_x = antenna_b_x.abs_diff(x);
 
-                            let min_distance = distance_a_x.min(distance_b_x);
-                            let max_distance = distance_a_x.max(distance_b_x);
+                        let min_distance = distance_a_x.min(distance_b_x);
+                        let max_distance = distance_a_x.max(distance_b_x);
 
-                            if max_distance % min_distance == 0 && max_distance / min_distance == 2
-                            {
-                                total_antinodes += 1;
-                                break 'frequency;
-                            }
+                        if max_distance % min_distance == 0 && max_distance / min_distance == 2 {
+                            total_antinodes += 1;
+                            break 'frequency;
                         }
                     }
                 }
             }
-        }
+        });
 
         total_antinodes
     }
@@ -127,18 +124,16 @@ impl City {
             .cloned()
             .collect::<HashSet<_>>();
 
-        for y in 0..self.height {
-            for x in 0..self.width {
-                for frequency in self.antennas.keys() {
-                    let inline_antennas = self.inline_antennas(frequency, (x, y));
+        width_height_2d_iter(self.width, self.height).for_each(|(x, y)| {
+            for frequency in self.antennas.keys() {
+                let inline_antennas = self.inline_antennas(frequency, (x, y));
 
-                    if !inline_antennas.is_empty() {
-                        antinode_set.insert((x, y));
-                        break;
-                    }
+                if !inline_antennas.is_empty() {
+                    antinode_set.insert((x, y));
+                    break;
                 }
             }
-        }
+        });
 
         antinode_set.len() as u32
     }

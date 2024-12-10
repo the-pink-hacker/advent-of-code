@@ -140,8 +140,9 @@ impl LabMap {
     fn part_two(&self) -> u32 {
         let mut positions = AtomicU32::new(0);
 
-        for y in 0..self.height {
-            (0..self.width).into_par_iter().for_each(|x| {
+        width_height_2d_iter(self.width, self.height)
+            .par_bridge()
+            .for_each(|(x, y)| {
                 if !self.obstructions.contains(&(x, y)) && self.guard_position != (x, y) {
                     let mut map_clone = self.clone();
                     map_clone.obstructions.insert((x, y));
@@ -149,8 +150,7 @@ impl LabMap {
                         positions.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     }
                 }
-            })
-        }
+            });
 
         *positions.get_mut()
     }
