@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [ "common",
-    "days/day-1", "days/day-10", "days/day-2", "days/day-3", "days/day-4", "days/day-5", "days/day-6", "days/day-7", "days/day-8", "days/day-9",
+    "days/day-1", "days/day-10", "days/day-11", "days/day-2", "days/day-3", "days/day-4", "days/day-5", "days/day-6", "days/day-7", "days/day-8", "days/day-9",
 ]
 
 [workspace.package]
