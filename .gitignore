@@ -1,3 +1,4 @@
+/common/target
 /years/*/target
-/Cargo.lock
-/days/*/input
+**/Cargo.lock
+/years/*/days/*/input
