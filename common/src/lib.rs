@@ -4,10 +4,10 @@ use std::{fmt::Display, iter::Step};
 
 use num_traits::PrimInt;
 
-pub fn advent_solution(day: u8, part_one: impl Display, part_two: impl Display) {
+pub fn advent_solution(year: u16, day: u8, part_one: impl Display, part_two: impl Display) {
     println!(
-        "=== Day {} ===\n\nPart One:\n{}\n\nPart Two:\n{}",
-        day, part_one, part_two
+        "=== {} Day {} ===\n\nPart One:\n{}\n\nPart Two:\n{}",
+        year, day, part_one, part_two
     );
 }
 
