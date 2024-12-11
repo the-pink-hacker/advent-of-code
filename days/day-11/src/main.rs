@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common::*;
 
 include_input!(INPUT);
@@ -25,37 +27,52 @@ impl Stones {
         Self { stones }
     }
 
-    fn blink(stone: usize, stones: &mut Vec<usize>) {
-        match stone {
-            0 => stones.push(1),
+    fn blink(stone: usize, mut depth: u8, cache: &mut HashMap<(u8, usize), usize>) -> usize {
+        if depth == 0 {
+            return 1;
+        }
+
+        depth -= 1;
+
+        if let Some(value) = cache.get(&(depth, stone)) {
+            return *value;
+        }
+
+        let amount = match stone {
+            0 => Self::blink(1, depth, cache),
             stone if (stone.ilog10() + 1) % 2 == 0 => {
                 let (left, right) = split_number(stone);
-                stones.push(left);
-                stones.push(right);
+                Self::blink(left, depth, cache) + Self::blink(right, depth, cache)
             }
-            _ => stones.push(stone * 2024),
-        }
+            _ => Self::blink(stone * 2024, depth, cache),
+        };
+
+        cache.insert((depth, stone), amount);
+        amount
     }
 
-    fn part_one(&mut self) -> usize {
-        for _ in 0..25 {
-            let mut new_stones = Vec::with_capacity(self.stones.len() * 2);
+    fn blink_many(&self, times: u8) -> usize {
+        let mut cache = HashMap::new();
 
-            for stone in &self.stones {
-                Self::blink(*stone, &mut new_stones);
-            }
+        self.stones
+            .iter()
+            .map(|stone| Self::blink(*stone, times, &mut cache))
+            .sum()
+    }
 
-            self.stones = new_stones;
-        }
+    fn part_one(&self) -> usize {
+        self.blink_many(25)
+    }
 
-        self.stones.len()
+    fn part_two(&self) -> usize {
+        self.blink_many(75)
     }
 }
 
 fn main() {
-    let mut stones = Stones::new(INPUT);
+    let stones = Stones::new(INPUT);
 
-    advent_solution(11, stones.part_one(), "");
+    advent_solution(11, stones.part_one(), stones.part_two());
 }
 
 #[cfg(test)]
@@ -66,7 +83,7 @@ mod tests {
 
     #[test]
     fn example_1() {
-        let mut stones = Stones::new(EXAMPLE_ONE);
+        let stones = Stones::new(EXAMPLE_ONE);
         assert_eq!(stones.part_one(), 55312);
     }
 
@@ -79,7 +96,13 @@ mod tests {
 
     #[test]
     fn part_one_final() {
-        let mut stones = Stones::new(INPUT);
+        let stones = Stones::new(INPUT);
         assert_eq!(stones.part_one(), 194557);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let stones = Stones::new(INPUT);
+        assert_eq!(stones.part_two(), 231532558973909);
     }
 }
