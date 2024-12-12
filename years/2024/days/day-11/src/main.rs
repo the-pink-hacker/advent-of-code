@@ -52,7 +52,7 @@ impl Stones {
     }
 
     fn blink_many(&self, times: u8) -> usize {
-        let mut cache = HashMap::new();
+        let mut cache = HashMap::with_capacity(130_000);
 
         self.stones
             .iter()
