@@ -91,23 +91,117 @@ impl Garden {
         Region { area, perimeter }
     }
 
-    fn regions(&self) -> Vec<Region> {
+    fn scan_side(
+        &self,
+        position: (usize, usize),
+        direction: (i8, i8),
+    ) -> ((usize, usize), (usize, usize)) {
+        let (mut x, mut y) = position;
+        let current_plot = self.plots[y][x];
+        let (direction_x, direction_y) = direction;
+        let scan_direction = (direction_y, direction_x);
+
+        let mut positive_end = position;
+
+        while let Some(search_plot) = self.get_offset((x, y), scan_direction) {
+            x = x.wrapping_add_signed(scan_direction.0 as isize);
+            y = y.wrapping_add_signed(scan_direction.1 as isize);
+
+            if search_plot != current_plot || self.is_plot_same((x, y), direction) {
+                positive_end = (x, y);
+            }
+        }
+
+        let scan_direction = (-direction_y, -direction_x);
+
+        let mut negative_end = position;
+
+        while let Some(search_plot) = self.get_offset((x, y), scan_direction) {
+            x = x.wrapping_add_signed(scan_direction.0 as isize);
+            y = y.wrapping_add_signed(scan_direction.1 as isize);
+
+            if search_plot != current_plot || self.is_plot_same((x, y), direction) {
+                negative_end = (x, y);
+            }
+        }
+
+        (
+            (
+                positive_end.0.min(negative_end.0),
+                positive_end.1.min(negative_end.1),
+            ),
+            (
+                positive_end.0.max(negative_end.0),
+                positive_end.1.max(negative_end.1),
+            ),
+        )
+    }
+
+    fn scan_region_sides(
+        &self,
+        position: (usize, usize),
+        visted: &mut HashSet<(usize, usize)>,
+    ) -> Region {
+        let mut area = 1;
+        let mut sides = HashSet::<((usize, usize), (usize, usize))>::new();
+        visted.insert(position);
+        let mut to_check = [position].into_iter().collect::<HashSet<_>>();
+
+        while let Some(check_position) = pop_set(&mut to_check) {
+            for direction in [UP, DOWN, LEFT, RIGHT] {
+                if self.is_plot_same(check_position, direction) {
+                    let (x, y) = check_position;
+                    let (direction_x, direction_y) = direction;
+                    let new_x = x.wrapping_add_signed(direction_x as isize);
+                    let new_y = y.wrapping_add_signed(direction_y as isize);
+
+                    if !visted.contains(&(new_x, new_y)) {
+                        area += 1;
+                        visted.insert((new_x, new_y));
+                        to_check.insert((new_x, new_y));
+                    }
+                } else {
+                    let (side_lower, side_upper) = self.scan_side(check_position, direction);
+                    if side_lower != side_upper {
+                        sides.insert((side_lower, side_upper));
+                    }
+                }
+            }
+        }
+
+        dbg!(self.plots[position.1][position.0], &sides);
+
+        Region {
+            area,
+            perimeter: sides.len() as u32,
+        }
+    }
+
+    fn regions(
+        &self,
+        scan: impl Fn(&Self, (usize, usize), &mut HashSet<(usize, usize)>) -> Region,
+    ) -> u32 {
         let area = self.width * self.height;
         let mut visted = HashSet::<(usize, usize)>::with_capacity(area);
 
         width_height_2d_iter(self.width, self.height)
             .filter_map(|position| {
                 if !visted.contains(&position) {
-                    Some(self.scan_region(position, &mut visted))
+                    Some(scan(self, position, &mut visted))
                 } else {
                     None
                 }
             })
-            .collect()
+            .map(|region| region.cost())
+            .sum()
     }
 
     fn part_one(&self) -> u32 {
-        self.regions().iter().map(Region::cost).sum()
+        self.regions(Self::scan_region)
+    }
+
+    fn part_two(&self) -> u32 {
+        self.regions(Self::scan_region_sides)
     }
 }
 
@@ -126,7 +220,7 @@ impl Region {
 fn main() {
     let garden = Garden::new(INPUT);
 
-    advent_solution(2024, 12, garden.part_one(), "");
+    advent_solution(2024, 12, garden.part_one(), garden.part_two());
 }
 
 #[cfg(test)]
@@ -144,10 +238,22 @@ MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE";
 
+    const EXAMPLE_TWO: &str = "EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE";
+
     #[test]
     fn example_1() {
         let garden = Garden::new(EXAMPLE_ONE);
         assert_eq!(garden.part_one(), 1930);
+    }
+
+    #[test]
+    fn example_2() {
+        let garden = Garden::new(EXAMPLE_TWO);
+        assert_eq!(garden.part_two(), 236);
     }
 
     #[test]
