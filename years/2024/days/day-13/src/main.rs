@@ -47,7 +47,11 @@ impl Game {
         if numerator % denominator == 0 {
             let button_a = (numerator / denominator) as u64;
             let button_b = (prize_x - (button_a_x * button_a)) / button_b_x;
-            dbg!(button_a, button_b);
+
+            // WHY????????????
+            if button_a * button_a_x + button_b * button_b_x != prize_x {
+                return None;
+            }
 
             Some(button_a * 3 + button_b)
         } else {
@@ -139,5 +143,11 @@ Prize: X=18641, Y=10279";
     fn part_one_final() {
         let games = parse_input(INPUT);
         assert_eq!(part_one(&games), 28059);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let games = parse_input(INPUT);
+        assert_eq!(part_two(games), 102255878088512);
     }
 }
