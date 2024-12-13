@@ -1,14 +1,14 @@
 use common::*;
 
-const MAX_PRESSES: u8 = 100;
+const CONVERSION_OFFSET: u64 = 10_000_000_000_000;
 
 include_input!(INPUT);
 
 #[derive(Debug, Eq, PartialEq)]
 struct Game {
-    button_a: (u32, u32),
-    button_b: (u32, u32),
-    prize: (u32, u32),
+    button_a: (u64, u64),
+    button_b: (u64, u64),
+    prize: (u64, u64),
 }
 
 impl Game {
@@ -29,38 +29,35 @@ impl Game {
         }
     }
 
-    fn parse_button(raw: &str) -> (u32, u32) {
+    fn parse_button(raw: &str) -> (u64, u64) {
         let (_, right) = raw.split_once('+').unwrap();
         let (x, y) = right.split_once(',').unwrap();
         let (_, y) = y.split_once('+').unwrap();
         (x.parse().unwrap(), y.parse().unwrap())
     }
 
-    fn min_tokens(&self) -> Option<u32> {
+    fn min_tokens(&self) -> Option<u64> {
         let (button_a_x, button_a_y) = self.button_a;
         let (button_b_x, button_b_y) = self.button_b;
         let (prize_x, prize_y) = self.prize;
 
-        for a_presses in 0..MAX_PRESSES {
-            let a_x_amount = button_a_x * a_presses as u32;
-            let a_y_amount = button_a_y * a_presses as u32;
+        let numerator = (prize_x * button_b_y) as i64 - (prize_y * button_b_x) as i64;
+        let denominator = (button_a_x * button_b_y) as i64 - (button_a_y * button_b_x) as i64;
 
-            if let Some(remaining_x) = prize_x.checked_sub(a_x_amount) {
-                let b_presses = remaining_x / button_b_x;
+        if numerator % denominator == 0 {
+            let button_a = (numerator / denominator) as u64;
+            let button_b = (prize_x - (button_a_x * button_a)) / button_b_x;
+            dbg!(button_a, button_b);
 
-                let b_x_amount = button_b_x * b_presses;
-                let b_y_amount = button_b_y * b_presses;
-
-                let x_amount = a_x_amount + b_x_amount;
-                let y_amount = a_y_amount + b_y_amount;
-
-                if x_amount == prize_x && y_amount == prize_y {
-                    return Some(a_presses as u32 * 3 + b_presses);
-                }
-            }
+            Some(button_a * 3 + button_b)
+        } else {
+            None
         }
+    }
 
-        None
+    fn correct_conversion(&mut self) {
+        self.prize.0 += CONVERSION_OFFSET;
+        self.prize.1 += CONVERSION_OFFSET;
     }
 }
 
@@ -68,14 +65,19 @@ fn parse_input(raw: &str) -> Vec<Game> {
     raw.split("\n\n").map(Game::new).collect()
 }
 
-fn part_one(games: &[Game]) -> u32 {
+fn part_one(games: &[Game]) -> u64 {
+    games.iter().filter_map(Game::min_tokens).sum()
+}
+
+fn part_two(mut games: Vec<Game>) -> u64 {
+    games.iter_mut().for_each(Game::correct_conversion);
     games.iter().filter_map(Game::min_tokens).sum()
 }
 
 fn main() {
     let games = parse_input(INPUT);
 
-    advent_solution(2024, 13, part_one(&games), "");
+    advent_solution(2024, 13, part_one(&games), part_two(games));
 }
 
 #[cfg(test)]
