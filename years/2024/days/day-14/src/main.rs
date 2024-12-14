@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashSet};
 
 use common::*;
 
@@ -32,18 +32,18 @@ struct Room {
 }
 
 impl Room {
-    fn new_big() -> Self {
-        Self::from_size(101, 103)
+    fn new_big(robots: Vec<Robot>) -> Self {
+        Self::from_size(101, 103, robots)
     }
 
-    fn new_small() -> Self {
-        Self::from_size(11, 7)
+    #[allow(unused)]
+    fn new_small(robots: Vec<Robot>) -> Self {
+        Self::from_size(11, 7, robots)
     }
 
-    fn from_size(width: u8, height: u8) -> Self {
+    fn from_size(width: u8, height: u8, robots: Vec<Robot>) -> Self {
         let width_middle = width / 2;
         let height_middle = height / 2;
-        let robots = Vec::new();
 
         Self {
             width,
@@ -60,8 +60,8 @@ impl Room {
 
         let total_x = x as i32 + (velocity_x as i32 * seconds as i32);
         let total_y = y as i32 + (velocity_y as i32 * seconds as i32);
-        let wrapped_x = (total_x.rem_euclid(self.width as i32)) as u8;
-        let wrapped_y = (total_y.rem_euclid(self.height as i32)) as u8;
+        let wrapped_x = total_x.rem_euclid(self.width as i32) as u8;
+        let wrapped_y = total_y.rem_euclid(self.height as i32) as u8;
 
         (wrapped_x, wrapped_y)
     }
@@ -84,10 +84,10 @@ impl Room {
         }
     }
 
-    fn process(&self, robots: &[Robot], seconds: u32) -> [u32; 4] {
+    fn process(&self, seconds: u32) -> [u32; 4] {
         let mut quads = [0; 4];
 
-        robots
+        self.robots
             .iter()
             .map(|robot| self.calculate_final_position(robot, seconds))
             .filter_map(|position| self.quad_index(position))
@@ -96,8 +96,63 @@ impl Room {
         quads
     }
 
-    fn part_one(&self, robots: &[Robot]) -> u32 {
-        self.process(robots, 100).into_iter().product()
+    fn print(&self, seconds: u32) {
+        let robots = self
+            .robots
+            .iter()
+            .map(|robot| self.calculate_final_position(robot, seconds))
+            .collect::<HashSet<_>>();
+
+        let deviation = self.x_deviation(seconds);
+
+        if deviation > 19 {
+            return;
+        }
+
+        println!("\n\n====================================================================\n\n");
+
+        (0..self.height).for_each(|y| {
+            let line = (0..self.width)
+                .map(|x| match robots.get(&(x, y)) {
+                    Some(_) => '#',
+                    None => ' ',
+                })
+                .collect::<String>();
+
+            println!("{}", line);
+        });
+
+        println!("Seconds: {}", seconds);
+        println!("Deviation: {}", deviation);
+
+        let mut x = String::new();
+        std::io::stdin().read_line(&mut x).unwrap();
+    }
+
+    fn x_deviation(&self, seconds: u32) -> u8 {
+        let positions = self
+            .robots
+            .iter()
+            .map(|robot| self.calculate_final_position(robot, seconds).0 as usize)
+            .collect::<Vec<_>>();
+        let length = positions.len();
+
+        let mean = positions.iter().sum::<usize>() / length;
+        let variance = positions
+            .into_iter()
+            .map(|position| (position - mean).pow(2))
+            .sum::<usize>()
+            / length;
+
+        variance.isqrt() as u8
+    }
+
+    fn part_one(&self) -> u32 {
+        self.process(100).into_iter().product()
+    }
+
+    fn part_two(&self) {
+        (0..u32::MAX).for_each(|i| self.print(i))
     }
 }
 
@@ -106,9 +161,9 @@ fn parse_input(raw: &str) -> Vec<Robot> {
 }
 
 fn main() {
-    let robots = parse_input(INPUT);
-    let room = Room::new_big();
-    advent_solution(2024, 14, room.part_one(&robots), "");
+    let room = Room::new_big(parse_input(INPUT));
+    room.part_two();
+    advent_solution(2024, 14, room.part_one(), "");
 }
 
 #[cfg(test)]
@@ -140,13 +195,13 @@ p=9,5 v=-3,-3";
 
     #[test]
     fn example_1() {
-        let robots = parse_input(EXAMPLE_ONE);
-        assert_eq!(Room::new_small().part_one(&robots), 12);
+        let room = Room::new_small(parse_input(EXAMPLE_ONE));
+        assert_eq!(room.part_one(), 12);
     }
 
     #[test]
     fn part_one_final() {
-        let robots = parse_input(INPUT);
-        assert_eq!(Room::new_big().part_one(&robots), 218295000);
+        let room = Room::new_big(parse_input(INPUT));
+        assert_eq!(room.part_one(), 218295000);
     }
 }
