@@ -1,8 +1,19 @@
-use std::{cmp::Ordering, collections::HashSet};
+use std::cmp::Ordering;
 
 use common::*;
 
 include_input!(INPUT);
+
+fn standard_deviation(values: &[usize]) -> u8 {
+    let mean = values.iter().sum::<usize>() / values.len();
+    let variance = values
+        .iter()
+        .map(|value| value.abs_diff(mean).pow(2))
+        .sum::<usize>()
+        / values.len();
+
+    variance.isqrt() as u8
+}
 
 #[derive(Debug, PartialEq, Eq)]
 struct Robot {
@@ -96,63 +107,36 @@ impl Room {
         quads
     }
 
-    fn print(&self, seconds: u32) {
-        let robots = self
-            .robots
-            .iter()
-            .map(|robot| self.calculate_final_position(robot, seconds))
-            .collect::<HashSet<_>>();
+    fn is_tree(&self, seconds: u32) -> bool {
+        let (deviation_x, deviation_y) = self.deviations(seconds);
 
-        let deviation = self.x_deviation(seconds);
-
-        if deviation > 19 {
-            return;
-        }
-
-        println!("\n\n====================================================================\n\n");
-
-        (0..self.height).for_each(|y| {
-            let line = (0..self.width)
-                .map(|x| match robots.get(&(x, y)) {
-                    Some(_) => '#',
-                    None => ' ',
-                })
-                .collect::<String>();
-
-            println!("{}", line);
-        });
-
-        println!("Seconds: {}", seconds);
-        println!("Deviation: {}", deviation);
-
-        let mut x = String::new();
-        std::io::stdin().read_line(&mut x).unwrap();
+        deviation_x < 20 && deviation_y < 20
     }
 
-    fn x_deviation(&self, seconds: u32) -> u8 {
-        let positions = self
+    fn deviations(&self, seconds: u32) -> (u8, u8) {
+        let (positions_x, positions_y) = self
             .robots
             .iter()
-            .map(|robot| self.calculate_final_position(robot, seconds).0 as usize)
-            .collect::<Vec<_>>();
-        let length = positions.len();
+            .map(|robot| {
+                let (x, y) = self.calculate_final_position(robot, seconds);
+                (x as usize, y as usize)
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
 
-        let mean = positions.iter().sum::<usize>() / length;
-        let variance = positions
-            .into_iter()
-            .map(|position| (position - mean).pow(2))
-            .sum::<usize>()
-            / length;
+        let deviation_x = standard_deviation(&positions_x);
+        let deviation_y = standard_deviation(&positions_y);
 
-        variance.isqrt() as u8
+        (deviation_x, deviation_y)
     }
 
     fn part_one(&self) -> u32 {
         self.process(100).into_iter().product()
     }
 
-    fn part_two(&self) {
-        (0..u32::MAX).for_each(|i| self.print(i))
+    fn part_two(&self) -> usize {
+        (0..u32::MAX)
+            .position(|seconds| self.is_tree(seconds))
+            .unwrap()
     }
 }
 
@@ -162,8 +146,8 @@ fn parse_input(raw: &str) -> Vec<Robot> {
 
 fn main() {
     let room = Room::new_big(parse_input(INPUT));
-    room.part_two();
-    advent_solution(2024, 14, room.part_one(), "");
+
+    advent_solution(2024, 14, room.part_one(), room.part_two());
 }
 
 #[cfg(test)]
@@ -203,5 +187,11 @@ p=9,5 v=-3,-3";
     fn part_one_final() {
         let room = Room::new_big(parse_input(INPUT));
         assert_eq!(room.part_one(), 218295000);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let room = Room::new_big(parse_input(INPUT));
+        assert_eq!(room.part_two(), 6870);
     }
 }
