@@ -2,9 +2,8 @@ use common::*;
 
 include_input!(INPUT);
 
-fn gps_location(position: (u8, u8)) -> u32 {
-    let (x, y) = position;
-    x as u32 + y as u32 * 100
+trait IsBox {
+    fn is_box(&self) -> bool;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -22,6 +21,16 @@ impl Tile {
         }
     }
 
+    fn widen(value: Option<Self>) -> [Option<WideTile>; 2] {
+        match value {
+            Some(Self::Wall) => [Some(WideTile::Wall), Some(WideTile::Wall)],
+            Some(Self::Box) => [Some(WideTile::BoxLeft), Some(WideTile::BoxRight)],
+            None => [None, None],
+        }
+    }
+}
+
+impl IsBox for Tile {
     fn is_box(&self) -> bool {
         match self {
             Self::Box => true,
@@ -30,7 +39,85 @@ impl Tile {
     }
 }
 
-struct Warehouse {
+#[derive(Debug, Clone, Copy)]
+enum WideTile {
+    Wall,
+    BoxLeft,
+    BoxRight,
+}
+
+impl IsBox for WideTile {
+    fn is_box(&self) -> bool {
+        match self {
+            Self::Wall | Self::BoxRight => false,
+            Self::BoxLeft => true,
+        }
+    }
+}
+
+trait Warehouse<T: IsBox> {
+    fn get_tile(&self, position: (u8, u8)) -> Option<&T> {
+        let (x, y) = position;
+        self.get_tiles()
+            .get(y as usize)
+            .and_then(|tiles| tiles.get(x as usize).and_then(Option::as_ref))
+    }
+
+    fn push(&mut self, position: (u8, u8), direction: Direction) -> bool;
+
+    fn step(&mut self, direction: Direction);
+
+    fn box_gps_sum(&self) -> u32 {
+        width_height_2d_iter(self.get_width(), self.get_height())
+            .filter(|position| self.is_box(*position))
+            .map(Self::gps_location)
+            .sum()
+    }
+
+    fn get_tiles(&self) -> &Vec<Vec<Option<T>>>;
+
+    fn get_tiles_mut(&mut self) -> &mut Vec<Vec<Option<T>>>;
+
+    fn get_directions(&self) -> &Vec<Direction>;
+
+    fn get_width(&self) -> u8;
+
+    fn get_height(&self) -> u8;
+
+    fn is_box(&self, position: (u8, u8)) -> bool {
+        let (x, y) = position;
+        self.get_tiles()[y as usize][x as usize]
+            .as_ref()
+            .map(IsBox::is_box)
+            .unwrap_or_default()
+    }
+
+    fn push_tile(&mut self, from: (u8, u8), to: (u8, u8)) {
+        let (from_x, from_y) = from;
+        let (to_x, to_y) = to;
+        let tile = self.get_tiles_mut()[from_y as usize][from_x as usize]
+            .take()
+            .unwrap();
+        self.get_tiles_mut()[to_y as usize][to_x as usize] = Some(tile);
+    }
+
+    fn step_all(&mut self) -> u32 {
+        self.get_directions()
+            .clone()
+            .into_iter()
+            .for_each(|direction| self.step(direction));
+
+        self.box_gps_sum()
+    }
+
+    fn gps_location(position: (u8, u8)) -> u32 {
+        let (x, y) = position;
+        x as u32 + y as u32 * 100
+    }
+}
+
+#[derive(Debug, Clone)]
+struct NormalWarehouse {
     tiles: Vec<Vec<Option<Tile>>>,
     width: u8,
     height: u8,
@@ -38,7 +125,7 @@ struct Warehouse {
     directions: Vec<Direction>,
 }
 
-impl Warehouse {
+impl NormalWarehouse {
     fn from_raw(raw: &str) -> Self {
         let (tiles, movements) = raw.split_once("\n\n").unwrap();
 
@@ -74,13 +161,27 @@ impl Warehouse {
         }
     }
 
-    fn get_tile(&self, position: (u8, u8)) -> Option<&Tile> {
-        let (x, y) = position;
-        self.tiles
-            .get(y as usize)
-            .and_then(|tiles| tiles.get(x as usize).and_then(Option::as_ref))
-    }
+    fn widen(self) -> WideWarehouse {
+        let (x, y) = self.robot;
+        let robot = (x * 2 - 1, y);
 
+        let tiles = self
+            .tiles
+            .into_iter()
+            .map(|line| line.into_iter().flat_map(Tile::widen).collect())
+            .collect();
+
+        WideWarehouse {
+            width: self.width * 2,
+            height: self.height,
+            directions: self.directions,
+            tiles,
+            robot,
+        }
+    }
+}
+
+impl Warehouse<Tile> for NormalWarehouse {
     fn push(&mut self, position: (u8, u8), direction: Direction) -> bool {
         let push_position = direction.apply(position);
 
@@ -91,11 +192,7 @@ impl Warehouse {
         };
 
         if can_push {
-            let (x, y) = position;
-            let (push_x, push_y) = push_position;
-
-            let tile = self.tiles[y as usize][x as usize].take().unwrap();
-            self.tiles[push_y as usize][push_x as usize] = Some(tile);
+            self.push_tile(position, push_position);
         }
 
         can_push
@@ -117,28 +214,157 @@ impl Warehouse {
         self.robot = new_position;
     }
 
-    fn is_box(&self, position: (u8, u8)) -> bool {
+    fn get_tiles(&self) -> &Vec<Vec<Option<Tile>>> {
+        &self.tiles
+    }
+
+    fn get_tiles_mut(&mut self) -> &mut Vec<Vec<Option<Tile>>> {
+        &mut self.tiles
+    }
+
+    fn get_directions(&self) -> &Vec<Direction> {
+        &self.directions
+    }
+
+    fn get_width(&self) -> u8 {
+        self.width
+    }
+
+    fn get_height(&self) -> u8 {
+        self.height
+    }
+}
+
+struct WideWarehouse {
+    tiles: Vec<Vec<Option<WideTile>>>,
+    width: u8,
+    height: u8,
+    robot: (u8, u8),
+    directions: Vec<Direction>,
+}
+
+impl WideWarehouse {
+    fn can_push_vertical(&self, position: (u8, u8), direction: Direction) -> bool {
+        false
+    }
+
+    fn push_vertical(&mut self, position: (u8, u8), direction: Direction) {
+        let push_position = direction.apply(position);
+
+        self.push_vertical(push_position, direction);
+        self.push_tile(position, push_position);
+
+        let other_direction = self.get_tile(push_position).map(|tile| match tile {
+            WideTile::Wall => panic!("Hit wall: {:?}", push_position),
+            WideTile::BoxLeft => Direction::Right,
+            WideTile::BoxRight => Direction::Left,
+        });
+
+        if let Some(other_direction) = other_direction {
+            let other_push_positon = other_direction.apply(push_position);
+            self.push_vertical(other_push_positon, direction);
+        }
+    }
+}
+
+impl Warehouse<WideTile> for WideWarehouse {
+    fn push(&mut self, position: (u8, u8), direction: Direction) -> bool {
+        let push_position = direction.apply(position);
+        let push_tile = self.get_tile(push_position);
+
+        if direction.is_horizontal() {
+            let can_push = match push_tile {
+                Some(WideTile::Wall) => false,
+                Some(WideTile::BoxLeft | WideTile::BoxRight) => self.push(push_position, direction),
+                None => true,
+            };
+
+            if can_push {
+                self.push_tile(position, push_position);
+            }
+
+            can_push
+        } else {
+            let can_push_forward = match push_tile {
+                Some(WideTile::Wall) => false,
+                Some(WideTile::BoxLeft | WideTile::BoxRight) => {
+                    self.can_push_vertical(push_position, direction)
+                }
+                None => true,
+            };
+
+            if !can_push_forward {
+                return false;
+            }
+
+            let current_tile = self.get_tile(position);
+
+            let other_direction = match current_tile {
+                Some(WideTile::BoxLeft) => Direction::Right,
+                Some(WideTile::BoxRight) => Direction::Left,
+                Some(WideTile::Wall) | None => panic!("Wall mising other pair: {:?}", position),
+            };
+
+            let other_position = other_direction.apply(position);
+            let other_push_position = direction.apply(other_position);
+
+            let can_push_other = match self.get_tile(other_push_position) {
+                Some(WideTile::Wall) => false,
+                Some(WideTile::BoxLeft | WideTile::BoxRight) => {
+                    self.can_push_vertical(other_push_position, direction)
+                }
+                None => true,
+            };
+
+            if can_push_other {
+                self.push_vertical(position, direction);
+                self.push_vertical(other_position, direction);
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    fn step(&mut self, direction: Direction) {
+        let new_position = direction.apply(self.robot);
+
+        match self.get_tile(new_position) {
+            Some(WideTile::Wall) => return,
+            Some(WideTile::BoxRight | WideTile::BoxLeft) => {
+                if !self.push(new_position, direction) {
+                    return;
+                }
+            }
+            None => (),
+        };
+
+        self.robot = new_position;
+    }
+
+    fn gps_location(position: (u8, u8)) -> u32 {
         let (x, y) = position;
-        self.tiles[y as usize][x as usize]
-            .as_ref()
-            .map(Tile::is_box)
-            .unwrap_or_default()
+        (x - 1) as u32 + y as u32 * 100
     }
 
-    fn box_gps_sum(&self) -> u32 {
-        width_height_2d_iter(self.width, self.height)
-            .filter(|position| self.is_box(*position))
-            .map(gps_location)
-            .sum()
+    fn get_tiles(&self) -> &Vec<Vec<Option<WideTile>>> {
+        &self.tiles
     }
 
-    fn part_one(&mut self) -> u32 {
-        self.directions
-            .clone()
-            .into_iter()
-            .for_each(|direction| self.step(direction));
+    fn get_tiles_mut(&mut self) -> &mut Vec<Vec<Option<WideTile>>> {
+        &mut self.tiles
+    }
 
-        self.box_gps_sum()
+    fn get_directions(&self) -> &Vec<Direction> {
+        &self.directions
+    }
+
+    fn get_width(&self) -> u8 {
+        self.width
+    }
+
+    fn get_height(&self) -> u8 {
+        self.height
     }
 }
 
@@ -175,12 +401,24 @@ impl Direction {
 
         (new_x, new_y)
     }
+
+    fn is_horizontal(&self) -> bool {
+        match self {
+            Self::Up | Self::Down => false,
+            Self::Left | Self::Right => true,
+        }
+    }
 }
 
 fn main() {
-    let mut warehouse = Warehouse::from_raw(INPUT);
+    let warehouse = NormalWarehouse::from_raw(INPUT);
 
-    advent_solution(2024, 15, warehouse.part_one(), "");
+    advent_solution(
+        2024,
+        15,
+        warehouse.clone().step_all(),
+        warehouse.widen().step_all(),
+    );
 }
 
 #[cfg(test)]
@@ -222,19 +460,25 @@ v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^";
 
     #[test]
     fn example_1() {
-        let mut warehouse = Warehouse::from_raw(EXAMPLE_ONE);
-        assert_eq!(warehouse.part_one(), 10092);
+        let mut warehouse = NormalWarehouse::from_raw(EXAMPLE_ONE);
+        assert_eq!(warehouse.step_all(), 10092);
     }
 
     #[test]
     fn example_2() {
-        let mut warehouse = Warehouse::from_raw(EXAMPLE_TWO);
-        assert_eq!(warehouse.part_one(), 2028);
+        let mut warehouse = NormalWarehouse::from_raw(EXAMPLE_TWO);
+        assert_eq!(warehouse.step_all(), 2028);
+    }
+
+    #[test]
+    fn example_3() {
+        let mut warehouse = NormalWarehouse::from_raw(EXAMPLE_ONE).widen();
+        assert_eq!(warehouse.step_all(), 9021);
     }
 
     #[test]
     fn part_one_final() {
-        let mut warehouse = Warehouse::from_raw(INPUT);
-        assert_eq!(warehouse.part_one(), 1563092);
+        let mut warehouse = NormalWarehouse::from_raw(INPUT);
+        assert_eq!(warehouse.step_all(), 1563092);
     }
 }
