@@ -1,0 +1,11 @@
+[workspace]
+resolver = "3"
+members = [
+    "days/day-1",
+]
+
+[workspace.package]
+authors = [ "ThePinkHacker" ]
+license = "GPL-3.0-or-later"
+repository = "https://github.thepinkhacker.com/advent-of-code"
+edition = "2024"
