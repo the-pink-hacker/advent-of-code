@@ -8,11 +8,30 @@ use common::*;
 
 include_input!(INPUT);
 
-const START_ROTATION: u8 = 50;
-const FULL_ROTATION: u8 = 100;
+const START_ROTATION: u16 = 50;
+const FULL_ROTATION: u16 = 100;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct RotationValue(u8);
+struct RotationValue(u16);
+
+impl RotationValue {
+    const fn add_rotation(self, rhs: Self) -> (Self, u16) {
+        let sum = self.0 + rhs.0;
+
+        (Self(sum % FULL_ROTATION), sum / FULL_ROTATION)
+    }
+
+    fn sub_rotation(self, rhs: Self) -> (Self, u16) {
+        let diff = self.0.cast_signed() - rhs.0.cast_signed();
+        let first_zero = if self.0 == 0 { 0 } else { 100 };
+        let zeros = (first_zero - diff).cast_unsigned() / FULL_ROTATION;
+
+        (
+            Self(diff.rem_euclid(FULL_ROTATION.cast_signed()).cast_unsigned()),
+            zeros,
+        )
+    }
+}
 
 impl Default for RotationValue {
     fn default() -> Self {
@@ -30,13 +49,12 @@ impl FromStr for Rotation {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        let mut chars = s.chars();
-        let first = chars.next().context("Rotation is empty.")?;
-        let distance_raw = chars.collect::<String>();
+        let first = s.chars().next().context("Rotation is empty.")?;
+        let distance_raw = &s[1..];
         let distance = distance_raw
             .parse::<u16>()
             .with_context(|| format!("Failed to parse rotation distance: {distance_raw}"))?;
-        let distance_clamped = (distance % FULL_ROTATION as u16) as u8;
+        let distance_clamped = distance % FULL_ROTATION;
 
         match first {
             'R' => Ok(Self::Right(RotationValue(distance_clamped))),
@@ -50,7 +68,7 @@ impl Add for RotationValue {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
-        Self((self.0 + rhs.0) % FULL_ROTATION)
+        self.add_rotation(rhs).0
     }
 }
 
@@ -58,13 +76,7 @@ impl Sub for RotationValue {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
-        let (diff, overflowed) = self.0.overflowing_sub(rhs.0);
-
-        if overflowed {
-            Self(diff - (u8::MAX - FULL_ROTATION) - 1)
-        } else {
-            Self(diff)
-        }
+        self.sub_rotation(rhs).0
     }
 }
 
@@ -105,7 +117,20 @@ fn part_one(rotations: &[Rotation]) -> usize {
 }
 
 fn part_two(rotations: &[Rotation]) -> usize {
-    0
+    let mut password = 0;
+    let mut current_rotation = RotationValue::default();
+
+    for &rotation in rotations {
+        let (new_rotation, zeros) = match rotation {
+            Rotation::Left(value) => current_rotation.sub_rotation(value),
+            Rotation::Right(value) => current_rotation.add_rotation(value),
+        };
+
+        current_rotation = new_rotation;
+        password += zeros as usize;
+    }
+
+    password
 }
 
 fn main() -> anyhow::Result<()> {
@@ -119,6 +144,17 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EXAMPLE: &str = "L68
+L30
+R48
+L5
+R60
+L55
+L1
+L99
+R14
+L82";
 
     #[test]
     fn rotation_left_0() {
@@ -178,24 +214,152 @@ mod tests {
 
     #[test]
     fn part_one_example() {
-        let input = "L68
-L30
-R48
-L5
-R60
-L55
-L1
-L99
-R14
-L82";
-
-        let rotations = parse_input(input).unwrap();
+        let rotations = parse_input(EXAMPLE).unwrap();
         assert_eq!(part_one(&rotations), 3);
     }
 
     #[test]
-    fn part_one_test() {
+    fn part_one_final() {
         let rotations = parse_input(INPUT).unwrap();
         assert_eq!(part_one(&rotations), 964);
+    }
+
+    #[test]
+    fn rotation_add_zeros() {
+        let rotation = RotationValue(0);
+        let other = RotationValue(300);
+        let (sum, zeros) = rotation.add_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 3);
+    }
+
+    #[test]
+    fn rotation_sub_zeros() {
+        let rotation = RotationValue(10);
+        let other = RotationValue(10);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn rotation_sub_zeros_overflow() {
+        let rotation = RotationValue(0);
+        let other = RotationValue(300);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 3);
+    }
+
+    #[test]
+    fn part_two_example() {
+        let rotations = parse_input(EXAMPLE).unwrap();
+        assert_eq!(part_two(&rotations), 6);
+    }
+
+    #[test]
+    fn part_two_example_0() {
+        let rotation = RotationValue(50);
+        let other = RotationValue(68);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(82));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_1() {
+        let rotation = RotationValue(82);
+        let other = RotationValue(30);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(52));
+        assert_eq!(zeros, 0);
+    }
+
+    #[test]
+    fn part_two_example_2() {
+        let rotation = RotationValue(52);
+        let other = RotationValue(48);
+        let (sum, zeros) = rotation.add_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_3() {
+        let rotation = RotationValue(0);
+        let other = RotationValue(5);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(95));
+        assert_eq!(zeros, 0);
+    }
+
+    #[test]
+    fn part_two_example_4() {
+        let rotation = RotationValue(95);
+        let other = RotationValue(60);
+        let (sum, zeros) = rotation.add_rotation(other);
+        assert_eq!(sum, RotationValue(55));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_5() {
+        let rotation = RotationValue(55);
+        let other = RotationValue(55);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_6() {
+        let rotation = RotationValue(0);
+        let other = RotationValue(1);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(99));
+        assert_eq!(zeros, 0);
+    }
+
+    #[test]
+    fn part_two_example_7() {
+        let rotation = RotationValue(99);
+        let other = RotationValue(99);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(0));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_8() {
+        let rotation = RotationValue(0);
+        let other = RotationValue(14);
+        let (sum, zeros) = rotation.add_rotation(other);
+        assert_eq!(sum, RotationValue(14));
+        assert_eq!(zeros, 0);
+    }
+
+    #[test]
+    fn part_two_example_9() {
+        let rotation = RotationValue(14);
+        let other = RotationValue(82);
+        let (sum, zeros) = rotation.sub_rotation(other);
+        assert_eq!(sum, RotationValue(32));
+        assert_eq!(zeros, 1);
+    }
+
+    #[test]
+    fn part_two_example_10() {
+        let rotation = RotationValue(50);
+        let other = RotationValue(1000);
+        let (sum, zeros) = rotation.add_rotation(other);
+        assert_eq!(sum, RotationValue(50));
+        assert_eq!(zeros, 10);
+    }
+
+    #[test]
+    fn part_two_final() {
+        let rotations = parse_input(INPUT).unwrap();
+        let answer = part_two(&rotations);
+        assert_eq!(answer, 5872); // How the *FUCKK* is this so off?!?!?!
     }
 }
